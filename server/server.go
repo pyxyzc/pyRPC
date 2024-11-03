@@ -1,4 +1,4 @@
-package pyrpc
+package server
 
 import (
 	"encoding/json"
