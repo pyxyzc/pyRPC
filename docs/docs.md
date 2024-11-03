@@ -1,10 +1,37 @@
-# Day1
+# Day1-Server
+
+## Request
+
+server 接受客户端到来的请求，如下所示：
 
 ```
-var _ Codec = (*GobCodec)(nil)
+err = client.Call("Arith.Multiply", args, &reply)
 ```
 
-检查结构体是否实现了这个接口
+包括：
+
+1. 服务名
+2. 方法名
+3. 入参
+4. 出参（错误+返回值）
+
+参数和返回值抽象为Body，其他抽象为 **Header**
+
+```
+type Header struct {
+	ServiceMethod string // format "Service.Method"
+	Seq           uint64 // sequence number chosen by client
+	Error         string
+}
+```
+
+## Codec
+
+抽象出编解码接口Codec，可以实现不同的CodeC实例
+
+实现类需要实现 ReadHeader / ReadBody / Write，使用`var _ Codec = (*GobCodec)(nil)` 强制检查
+
+Write实现trick
 
 ```
 func NewGobCodec(conn io.ReadWriteCloser) Codec {
@@ -39,6 +66,39 @@ func (c *JsonCodec) Write(h *Header, body interface{}) (err error) {
 ```
 
 使用 buffer 来优化写入效率，先写入到buffer里，再调用 buffer.Flush() 来将 buffer 中的全部内容写入到 conn 中，从而优化效率
+
+## Communication
+
+一次连接的开始，确定「协商」内容，目前只有编解码方式需要确定，后续的请求共享这些 Option
+
+```
+| Option | Header1 | Body1 | Header2 | Body2 | ...
+```
+
+## Server
+
+经典的通信过程，for{} 循环等待socket建立，开子协程（`go server.ServeConn(conn)`）处理连接
+
+> trick：
+>
+> 可以启用一个default server，方便用户调用
+>
+> ```
+> var DefaultServer = NewServer()
+> func Accept(lis net.Listener) { DefaultServer.Accept(lis) }
+> ```
+
+具体的连接处理：`server.ServeConn(conn)`
+
+readRequest -> handleRequest -> sendResponse
+
+回复请求的报文必须是逐个发送，防止交织，一把大锁保平安
+
+
+
+
+
+
 
 # Day2
 
@@ -152,4 +212,18 @@ func main() {
 }
 
 ```
+
+
+
+
+
+
+
+Day4-Timeout
+
+
+
+
+
+
 
